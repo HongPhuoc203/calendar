@@ -1,135 +1,141 @@
-import 'package:flutter/material.dart';
-import '../models/event_model.dart';
-import '../services/firestore_services.dart';
-import '../services/notification_services.dart';
-class EventProvider extends ChangeNotifier {
-  final FirestoreService _firestoreService = FirestoreService();
-  final NotificationService _notificationService = NotificationService();
+// import 'package:flutter/material.dart';
+// import '../models/event_model.dart';
+// import '../services/firestore_services.dart';
+// import '../services/notification_services.dart';
 
-  List<Event> _events = [];
-  bool _isLoading = false;
-  String? _errorMessage;
+// class EventProvider with ChangeNotifier {
+//   final FirestoreService _firestoreService = FirestoreService();
+//   final NotificationService _notificationService = NotificationService();
 
-  List<Event> get events => _events;
-  bool get isLoading => _isLoading;
-  String? get errorMessage => _errorMessage;
+//   List<Event> _events = [];
+//   DateTime _selectedDate = DateTime.now();
+//   bool _isLoading = false;
+//   String? _errorMessage;
 
-  EventProvider() {
-    _loadEvents();
-  }
+//   List<Event> get events => _events;
+//   DateTime get selectedDate => _selectedDate;
+//   bool get isLoading => _isLoading;
+//   String? get errorMessage => _errorMessage;
 
-  void _loadEvents() {
-    _firestoreService.getEvents().listen(
-      (events) {
-        _events = events;
-        notifyListeners();
-      },
-      onError: (error) {
-        _errorMessage = error.toString();
-        notifyListeners();
-      },
-    );
-  }
+//   List<Event> get eventsForSelectedDate => _events.where((event) =>
+//     event.dateTime.year == _selectedDate.year &&
+//     event.dateTime.month == _selectedDate.month &&
+//     event.dateTime.day == _selectedDate.day).toList();
 
-  List<Event> getEventsForDay(DateTime day) {
-    return _events.where((event) {
-      return event.dateTime.year == day.year &&
-             event.dateTime.month == day.month &&
-             event.dateTime.day == day.day;
-    }).toList();
-  }
+//   EventProvider() {
+//     _loadEvents();
+//   }
 
-  Future<bool> addEvent({
-    required String title,
-    required String description,
-    required DateTime dateTime,
-    required String location,
-    required double cost,
-  }) async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
+//   void setSelectedDate(DateTime date) {
+//     _selectedDate = date;
+//     notifyListeners();
+//   }
 
-    try {
-      Event newEvent = Event(
-        id: '', // Will be set by Firestore
-        title: title,
-        description: description,
-        dateTime: dateTime,
-        location: location,
-        cost: cost,
-        ownerId: '', // Will be set by FirestoreService
-        createdAt: DateTime.now(),
-      );
+//   void _loadEvents() {
+//     _firestoreService.getEvents().listen(
+//       (events) {
+//         _events = events;
+//         notifyListeners();
+//       },
+//       onError: (error) {
+//         _errorMessage = error.toString();
+//         notifyListeners();
+//       },
+//     );
+//   }
 
-      String eventId = await _firestoreService.createEvent(newEvent);
-      
-      // Schedule notification
-      Event eventWithId = newEvent.copyWith(id: eventId);
-      await _notificationService.scheduleEventNotification(eventWithId);
+//   Future<bool> createEvent(Event event) async {
+//     _isLoading = true;
+//     _errorMessage = null;
+//     notifyListeners();
 
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _isLoading = false;
-      _errorMessage = e.toString();
-      notifyListeners();
-      return false;
-    }
-  }
+//     try {
+//       String eventId = await _firestoreService.createEvent(event);
+//       Event createdEvent = event.copyWith(id: eventId);
 
-  Future<bool> updateEvent(Event event) async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
+//       if (createdEvent.notificationOption > 0) {
+//         DateTime notifyTime = NotificationService.getNotificationTime(
+//           createdEvent.dateTime,
+//           createdEvent.notificationOption,
+//         );
+//         await _notificationService.scheduleEventNotification(
+//           id: createdEvent.id.hashCode,
+//           title: createdEvent.title,
+//           body: 'Event starting soon',
+//           scheduledTime: notifyTime,
+//         );
+//       }
 
-    try {
-      await _firestoreService.updateEvent(event);
-      
-      // Cancel old notification and schedule new one
-      await _notificationService.cancelEventNotification(event.id);
-      await _notificationService.scheduleEventNotification(event);
+//       _isLoading = false;
+//       notifyListeners();
+//       return true;
+//     } catch (e) {
+//       _isLoading = false;
+//       _errorMessage = e.toString();
+//       notifyListeners();
+//       return false;
+//     }
+//   }
 
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _isLoading = false;
-      _errorMessage = e.toString();
-      notifyListeners();
-      return false;
-    }
-  }
+//   Future<bool> updateEvent(Event event) async {
+//     _isLoading = true;
+//     _errorMessage = null;
+//     notifyListeners();
 
-  Future<bool> deleteEvent(String eventId) async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
+//     try {
+//       await _firestoreService.updateEvent(event);
 
-    try {
-      await _firestoreService.deleteEvent(eventId);
-      
-      // Cancel notification
-      await _notificationService.cancelEventNotification(eventId);
+//       await _notificationService.cancelEventNotification(event.id);
 
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _isLoading = false;
-      _errorMessage = e.toString();
-      notifyListeners();
-      return false;
-    }
-  }
+//       if (event.notificationOption > 0) {
+//         DateTime notifyTime = NotificationService.getNotificationTime(
+//           event.dateTime,
+//           event.notificationOption,
+//         );
+//         await _notificationService.scheduleEventNotification(
+//           id: event.id.hashCode,
+//           title: event.title,
+//           body: 'Event starting soon',
+//           scheduledTime: notifyTime,
+//         );
+//       }
 
-  Future<Event?> getEvent(String eventId) async {
-    return await _firestoreService.getEvent(eventId);
-  }
+//       _isLoading = false;
+//       notifyListeners();
+//       return true;
+//     } catch (e) {
+//       _isLoading = false;
+//       _errorMessage = e.toString();
+//       notifyListeners();
+//       return false;
+//     }
+//   }
 
-  void clearError() {
-    _errorMessage = null;
-    notifyListeners();
-  }
-}
+//   Future<bool> deleteEvent(String eventId) async {
+//     _isLoading = true;
+//     _errorMessage = null;
+//     notifyListeners();
+
+//     try {
+//       await _firestoreService.deleteEvent(eventId);
+//       await _notificationService.cancelEventNotification(eventId);
+//       _isLoading = false;
+//       notifyListeners();
+//       return true;
+//     } catch (e) {
+//       _isLoading = false;
+//       _errorMessage = e.toString();
+//       notifyListeners();
+//       return false;
+//     }
+//   }
+
+//   Future<Event?> getEvent(String eventId) async {
+//     return await _firestoreService.getEvent(eventId);
+//   }
+
+//   void clearError() {
+//     _errorMessage = null;
+//     notifyListeners();
+//   }
+// }

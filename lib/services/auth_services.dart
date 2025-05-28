@@ -1,64 +1,68 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/user_model.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  // Get current user
   User? get currentUser => _auth.currentUser;
+
+  // Auth state changes stream
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
-  Future<UserCredential?> signInWithEmailAndPassword(
+  // Sign in with email and password
+  Future<UserCredential> signInWithEmailAndPassword(
       String email, String password) async {
     try {
-      UserCredential result = await _auth.signInWithEmailAndPassword(
+      return await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
-      return result;
     } catch (e) {
-      print('Sign in error: $e');
-      throw e;
+      rethrow;
     }
   }
 
-  Future<UserCredential?> registerWithEmailAndPassword(
-      String email, String password, String name) async {
+  // Register with email and password
+  Future<UserCredential> registerWithEmailAndPassword(
+      String email, String password) async {
     try {
       UserCredential result = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
-      
-      if (result.user != null) {
-        // Create user document in Firestore
-        UserModel userModel = UserModel(
-          id: result.user!.uid,
-          name: name,
-          email: email,
-          createdAt: DateTime.now(),
-        );
-        
-        await _firestore
-            .collection('users')
-            .doc(result.user!.uid)
-            .set(userModel.toFirestore());
-      }
-      
+
+      // Send email verification
+      await result.user?.sendEmailVerification();
+
+      // Create user document in Firestore
+      await _firestore.collection('users').doc(result.user?.uid).set({
+        'email': email,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
       return result;
     } catch (e) {
-      print('Registration error: $e');
-      throw e;
+      rethrow;
     }
   }
 
+  // Sign out
   Future<void> signOut() async {
     try {
-      return await _auth.signOut();
+      await _auth.signOut();
     } catch (e) {
-      print('Sign out error: $e');
-      throw e;
+      rethrow;
     }
   }
-}
+
+  // Reset password
+  Future<void> resetPassword(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email);
+    } catch (e) {
+      rethrow;
+    }
+  }
+} 

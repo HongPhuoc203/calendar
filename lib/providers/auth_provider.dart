@@ -1,88 +1,78 @@
-import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import '../services/auth_services.dart';
+// import 'package:flutter/material.dart';
+// import 'package:firebase_auth/firebase_auth.dart';
+// import '../services/auth_services.dart';
+// import '../models/user_model.dart';
 
-class AuthProvider extends ChangeNotifier {
-  final AuthService _authService = AuthService();
-  
-  User? _user;
-  bool _isLoading = false;
-  String? _errorMessage;
+// class AuthProvider with ChangeNotifier {
+//   final AuthService _authService = AuthService();
 
-  User? get user => _user;
-  bool get isLoading => _isLoading;
-  String? get errorMessage => _errorMessage;
-  bool get isAuthenticated => _user != null;
+//   UserModel? _user;
+//   bool _isLoading = false;
 
-  AuthProvider() {
-    _authService.authStateChanges.listen((User? user) {
-      _user = user;
-      notifyListeners();
-    });
-  }
+//   UserModel? get user => _user;
+//   bool get isLoading => _isLoading;
+//   bool get isAuthenticated => _user != null;
 
-  Future<bool> signIn(String email, String password) async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
+//   AuthProvider() {
+//     // Listen to auth state changes
+//     _authService.authStateChanges.listen((User? firebaseUser) {
+//       if (firebaseUser != null) {
+//         _user = UserModel(
+//           id: firebaseUser.uid,
+//           name: firebaseUser.displayName ?? '',
+//           email: firebaseUser.email ?? '',
+//           createdAt: firebaseUser.metadata.creationTime ?? DateTime.now(),
+//           isEmailVerified: firebaseUser.emailVerified,
+//         );
+//       } else {
+//         _user = null;
+//       }
+//       notifyListeners();
+//     });
+//   }
 
-    try {
-      UserCredential? result = await _authService.signInWithEmailAndPassword(email, password);
-      _isLoading = false;
-      notifyListeners();
-      return result != null;
-    } catch (e) {
-      _isLoading = false;
-      _errorMessage = _getErrorMessage(e);
-      notifyListeners();
-      return false;
-    }
-  }
+//   Future<void> signIn(String email, String password) async {
+//     _isLoading = true;
+//     notifyListeners();
 
-  Future<bool> register(String email, String password, String name) async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
+//     try {
+//       await _authService.signInWithEmailAndPassword(email, password);
+//     } catch (e) {
+//       _isLoading = false;
+//       notifyListeners();
+//       rethrow;
+//     }
 
-    try {
-      UserCredential? result = await _authService.registerWithEmailAndPassword(email, password, name);
-      _isLoading = false;
-      notifyListeners();
-      return result != null;
-    } catch (e) {
-      _isLoading = false;
-      _errorMessage = _getErrorMessage(e);
-      notifyListeners();
-      return false;
-    }
-  }
+//     _isLoading = false;
+//     notifyListeners();
+//   }
 
-  Future<void> signOut() async {
-    await _authService.signOut();
-  }
+//   Future<void> register(String email, String password, String displayName) async {
+//     _isLoading = true;
+//     notifyListeners();
 
-  void clearError() {
-    _errorMessage = null;
-    notifyListeners();
-  }
+//     try {
+//       await _authService.registerWithEmailAndPassword(email, password, displayName);
+//     } catch (e) {
+//       _isLoading = false;
+//       notifyListeners();
+//       rethrow;
+//     }
 
-  String _getErrorMessage(dynamic error) {
-    if (error is FirebaseAuthException) {
-      switch (error.code) {
-        case 'user-not-found':
-          return 'No user found with this email.';
-        case 'wrong-password':
-          return 'Wrong password provided.';
-        case 'email-already-in-use':
-          return 'An account already exists with this email.';
-        case 'weak-password':
-          return 'The password provided is too weak.';
-        case 'invalid-email':
-          return 'The email address is not valid.';
-        default:
-          return error.message ?? 'An error occurred';
-      }
-    }
-    return error.toString();
-  }
-}
+//     _isLoading = false;
+//     notifyListeners();
+//   }
+
+//   Future<void> signOut() async {
+//     await _authService.signOut();
+//   }
+
+//   Future<void> sendEmailVerification() async {
+//     await _authService.sendEmailVerification();
+//   }
+
+//   Future<void> reloadUser() async {
+//     await _authService.reloadUser();
+//     notifyListeners();
+//   }
+// }
