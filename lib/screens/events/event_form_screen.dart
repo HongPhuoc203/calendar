@@ -55,53 +55,93 @@ class _EventFormScreenState extends State<EventFormScreen> {
 
   Future<void> _saveEvent() async {
     if (_formKey.currentState!.validate()) {
-      final userId = _authService.currentUser?.uid;
-      if (userId == null) return;
-
-      final event = Event(
-        id: widget.event?.id ?? const Uuid().v4(),
-        title: _titleController.text,
-        description: _descriptionController.text,
-        startTime: _startTime,
-        endTime: _endTime,
-        cost: double.parse(_costController.text),
-        userId: userId,
-        notificationOptions: _selectedNotifications,
-      );
-
-      if (widget.event == null) {
-        await _eventService.createEvent(event);
-      } else {
-        await _eventService.updateEvent(event);
-      }
-
-      // Schedule notifications
-      for (var notification in _selectedNotifications) {
-        DateTime notificationTime;
-        switch (notification) {
-          case '15 minutes before':
-            notificationTime = _startTime.subtract(const Duration(minutes: 15));
-            break;
-          case '1 hour before':
-            notificationTime = _startTime.subtract(const Duration(hours: 1));
-            break;
-          case '1 day before':
-            notificationTime = _startTime.subtract(const Duration(days: 1));
-            break;
-          default:
-            continue;
+      try {
+        final userId = _authService.currentUser?.uid;
+        if (userId == null) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('You must be logged in to create an event')),
+            );
+          }
+          return;
         }
 
-        await _notificationService.scheduleNotification(
-          id: event.id.hashCode,
-          title: event.title,
-          body: 'Event starting ${notification}',
-          scheduledTime: notificationTime,
+        final event = Event(
+          id: widget.event?.id ?? const Uuid().v4(),
+          title: _titleController.text,
+          description: _descriptionController.text,
+          startTime: _startTime,
+          endTime: _endTime,
+          cost: double.parse(_costController.text),
+          userId: userId,
+          notificationOptions: _selectedNotifications,
         );
-      }
 
-      if (mounted) {
-        Navigator.pop(context);
+        if (widget.event == null) {
+          await _eventService.createEvent(event);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Event created successfully')),
+            );
+            Navigator.of(context).popUntil((route) => route.isFirst);
+          }
+        } else {
+          await _eventService.updateEvent(event);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Event updated successfully')),
+            );
+            Navigator.of(context).pop();
+          }
+        }
+
+        // Schedule notifications only if user has selected any
+        if (_selectedNotifications.isNotEmpty) {
+          try {
+            // Request notification permission first
+            final permission = await _notificationService.requestPermission();
+            if (permission) {
+              for (var notification in _selectedNotifications) {
+                DateTime notificationTime;
+                switch (notification) {
+                  case '15 minutes before':
+                    notificationTime = _startTime.subtract(const Duration(minutes: 15));
+                    break;
+                  case '1 hour before':
+                    notificationTime = _startTime.subtract(const Duration(hours: 1));
+                    break;
+                  case '1 day before':
+                    notificationTime = _startTime.subtract(const Duration(days: 1));
+                    break;
+                  default:
+                    continue;
+                }
+
+                await _notificationService.scheduleNotification(
+                  id: event.id.hashCode,
+                  title: event.title,
+                  body: 'Event starting ${notification}',
+                  scheduledTime: notificationTime,
+                );
+              }
+            } else {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Notification permission denied')),
+                );
+              }
+            }
+          } catch (e) {
+            // Silently handle notification errors to not disrupt the main flow
+            print('Error scheduling notifications: $e');
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: ${e.toString()}')),
+          );
+        }
       }
     }
   }

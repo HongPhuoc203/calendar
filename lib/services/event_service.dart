@@ -8,8 +8,11 @@ class EventService {
   // Create event
   Future<void> createEvent(Event event) async {
     try {
+      print('Creating event: ${event.toMap()}'); // Debug print
       await _firestore.collection(_collection).doc(event.id).set(event.toMap());
+      print('Event created successfully'); // Debug print
     } catch (e) {
+      print('Error creating event: $e'); // Debug print
       rethrow;
     }
   }
@@ -17,8 +20,11 @@ class EventService {
   // Update event
   Future<void> updateEvent(Event event) async {
     try {
+      print('Updating event: ${event.toMap()}'); // Debug print
       await _firestore.collection(_collection).doc(event.id).update(event.toMap());
+      print('Event updated successfully'); // Debug print
     } catch (e) {
+      print('Error updating event: $e'); // Debug print
       rethrow;
     }
   }
@@ -26,8 +32,11 @@ class EventService {
   // Delete event
   Future<void> deleteEvent(String eventId) async {
     try {
+      print('Deleting event: $eventId'); // Debug print
       await _firestore.collection(_collection).doc(eventId).delete();
+      print('Event deleted successfully'); // Debug print
     } catch (e) {
+      print('Error deleting event: $e'); // Debug print
       rethrow;
     }
   }
@@ -35,26 +44,37 @@ class EventService {
   // Get event by ID
   Future<Event?> getEventById(String eventId) async {
     try {
+      print('Getting event by ID: $eventId'); // Debug print
       DocumentSnapshot doc = await _firestore.collection(_collection).doc(eventId).get();
       if (doc.exists) {
+        print('Event found: ${doc.data()}'); // Debug print
         return Event.fromMap(doc.data() as Map<String, dynamic>);
       }
+      print('Event not found'); // Debug print
       return null;
     } catch (e) {
+      print('Error getting event: $e'); // Debug print
       rethrow;
     }
   }
 
   // Get events for a specific user
   Stream<List<Event>> getUserEvents(String userId) {
+    print('Getting events for user: $userId'); // Debug print
     return _firestore
         .collection(_collection)
         .where('userId', isEqualTo: userId)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs
-          .map((doc) => Event.fromMap(doc.data()))
+      print('Received ${snapshot.docs.length} events from Firestore'); // Debug print
+      final events = snapshot.docs
+          .map((doc) {
+            print('Processing document: ${doc.data()}'); // Debug print
+            return Event.fromMap(doc.data());
+          })
           .toList();
+      print('Converted to ${events.length} Event objects'); // Debug print
+      return events;
     });
   }
 

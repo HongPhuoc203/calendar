@@ -27,6 +27,15 @@ class NotificationService {
     await _notifications.initialize(initSettings);
   }
 
+  Future<bool> requestPermission() async {
+    final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
+        _notifications.resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+
+    final bool? granted = await androidImplementation?.requestNotificationsPermission();
+    return granted ?? false;
+  }
+
   Future<void> scheduleNotification({
     required int id,
     required String title,
