@@ -5,10 +5,10 @@ class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Get current user
+  // Get current user : đây là phương thức để lấy thông tin người dùng hiện tại
   User? get currentUser => _auth.currentUser;
 
-  // Auth state changes stream
+  // Auth state changes stream : đây là phương thức để lấy thông tin người dùng khi có sự thay đổi
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
   // Sign in with email and password

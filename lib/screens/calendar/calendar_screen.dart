@@ -1,11 +1,12 @@
-
-
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:intl/intl.dart';
 import '../../models/event.dart';
 import '../../services/event_service.dart';
 import '../../services/auth_services.dart';
-
+import '../../services/notification_services.dart';
+import '../../screens/expenses/Expense_Statistics_Screen .dart';
+import '../../screens/ai/ai_chat_support_screen.dart';
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
 
@@ -161,6 +162,24 @@ class _CalendarScreenState extends State<CalendarScreen> with TickerProviderStat
       ),
       child: Row(
         children: [
+          Builder(
+            builder: (context) => IconButton(
+              onPressed: () {
+                Scaffold.of(context).openDrawer();
+              },
+              icon: const Icon(
+                Icons.menu_rounded,
+                color: Colors.white,
+                size: 28,
+              ),
+              style: IconButton.styleFrom(
+                backgroundColor: Colors.white.withAlpha((0.1 * 255).round()),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
@@ -178,21 +197,17 @@ class _CalendarScreenState extends State<CalendarScreen> with TickerProviderStat
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Lịch của tôi',
-                  style: TextStyle(
-                    fontSize: 24,
+                Text(
+                  _authService.currentUser?.email != null
+                      ? _authService.currentUser!.email!.split('@')[0]
+                      : 'Lịch của tôi',
+                  style: const TextStyle(
+                    fontSize: 17,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
                 ),
-                Text(
-                  'Quản lý sự kiện thông minh',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[400],
-                  ),
-                ),
+                
               ],
             ),
           ),
@@ -341,6 +356,7 @@ class _CalendarScreenState extends State<CalendarScreen> with TickerProviderStat
     );
   }
 
+  
   Widget _buildEventCard(Event event, int index) {
     return Container(
       margin: EdgeInsets.fromLTRB(16, index == 0 ? 16 : 8, 16, 8),
@@ -474,13 +490,17 @@ class _CalendarScreenState extends State<CalendarScreen> with TickerProviderStat
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.green.withAlpha((0.1 * 255).round()),
+                        color: event.cost == 0 
+                      ? Colors.blue.withAlpha((0.1 * 255).round())
+                      : Colors.green.withAlpha((0.1 * 255).round()),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        '\$${event.cost.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          color: Colors.green,
+                        event.cost == 0 
+                        ? 'Miễn phí'
+                        : '${NumberFormat('#,###', 'vi_VN').format(event.cost.toInt())} đ',
+                        style: TextStyle(
+                          color: event.cost == 0 ? Colors.blue : Colors.green,
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
                         ),
@@ -514,6 +534,8 @@ class _CalendarScreenState extends State<CalendarScreen> with TickerProviderStat
             onPressed: () async {
               Navigator.pop(context);
               await _eventService.deleteEvent(event.id);
+              final notificationService = NotificationService();
+              await notificationService.cancelNotification(int.parse(event.id));
               if (mounted) {
                 _showCustomSnackBar('Đã xóa sự kiện thành công');
               }
@@ -528,11 +550,61 @@ class _CalendarScreenState extends State<CalendarScreen> with TickerProviderStat
       ),
     );
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFFE91E63), Color(0xFFFF1744)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: const [
+                  Icon(Icons.calendar_month_rounded, color: Colors.white, size: 40),
+                  SizedBox(height: 12),
+                  Text('C Global Calendar', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.bar_chart_rounded, color: Color(0xFFE91E63)),
+              title: const Text('Thống kê chi phí'),
+              onTap: () {
+                Navigator.pop(context); // Close drawer
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ExpenseStatisticsScreen(),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.smart_toy_rounded, color: Color(0xFF2196F3)),
+              title: const Text('Trợ lí AI'),
+              onTap: () {
+                Navigator.pop(context); // Close drawer
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AIChatScreen(),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
       body: FadeTransition(
         opacity: _fadeAnimation,
         child: Column(
@@ -599,41 +671,90 @@ class _CalendarScreenState extends State<CalendarScreen> with TickerProviderStat
           ],
         ),
       ),
-      floatingActionButton: ScaleTransition(
-        scale: _fabAnimation,
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Color(0xFFE91E63),
-                Color(0xFFFF1744),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFFE91E63).withAlpha((0.3 * 255).round()),
-                blurRadius: 12,
-                offset: const Offset(0, 6),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: ScaleTransition(
+              scale: _fabAnimation,
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFF2196F3),
+                      Color(0xFF21CBF3),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF2196F3).withAlpha((0.3 * 255).round()),
+                      blurRadius: 12,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                // child: FloatingActionButton.extended(
+                //   heroTag: 'test_notification',
+                //   onPressed: _testNotification,
+                //   backgroundColor: Colors.transparent,
+                //   elevation: 0,
+                //   icon: const Icon(
+                //     Icons.notifications_active,
+                //     color: Colors.white,
+                //   ),
+                //   label: const Text(
+                //     'Test Notification',
+                //     style: TextStyle(color: Colors.white),
+                //   ),
+                // ),
               ),
-            ],
-          ),
-          child: FloatingActionButton(
-            onPressed: () {
-              Navigator.pushNamed(context, '/event-form');
-            },
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            child: const Icon(
-              Icons.add_rounded,
-              color: Colors.white,
-              size: 28,
             ),
           ),
-        ),
+          ScaleTransition(
+            scale: _fabAnimation,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFFE91E63),
+                    Color(0xFFFF1744),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFE91E63).withAlpha((0.3 * 255).round()),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: FloatingActionButton(
+                heroTag: 'add_event',
+                onPressed: () {
+                  Navigator.pushNamed(context, '/event-form');
+                },
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                child: const Icon(
+                  Icons.add_rounded,
+                  color: Colors.white,
+                  size: 28,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
+  
+  
 }
