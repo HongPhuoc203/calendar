@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 
 class AIChatService {
   static const String _geminiApiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
-  static const String _apiKey = 'aaaaaaaaaaaaaaaaaaaaaa'; // Lấy từ https://ai.google.dev/
+  static const String _apiKey = 'AIzaSyByGO6YdVt7oOHaGAqUf048At23M60oiRk'; // Lấy từ https://ai.google.dev/
 
   // Template prompt được tối ưu cho Gemini 2.5 Flash
   static const String _systemPrompt = '''
