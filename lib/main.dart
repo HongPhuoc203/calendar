@@ -11,13 +11,13 @@ import 'services/auth_services.dart';
 import 'services/notification_services.dart';
 import 'firebase_options.dart';
 import 'dart:async';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform,);
   await NotificationService().initialize();
   await NotificationService().requestPermission();
-
-
+  await dotenv.load(fileName: ".env");
   runApp(const MyApp());
 }
 
@@ -148,7 +148,7 @@ class _SplashScreenState extends State<SplashScreen>
     _startAnimations();
     
     // Chuyển đến login screen sau 4 giây
-    Timer(const Duration(seconds: 3), () {
+    Timer(const Duration(seconds: 2), () {
       // Kiểm tra xem người dùng đã đăng nhập hay chưa
       final authService = Provider.of<AuthService>(context, listen: false);
       if (authService.currentUser != null) {
