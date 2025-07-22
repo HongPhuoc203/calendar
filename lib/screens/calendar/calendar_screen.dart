@@ -5,8 +5,9 @@ import '../../models/event.dart';
 import '../../services/event_service.dart';
 import '../../services/auth_services.dart';
 import '../../services/notification_services.dart';
-import '../../screens/expenses/Expense_Statistics_Screen .dart';
+import '../../screens/expenses/expense_statistics_screen.dart';
 import '../../screens/ai/ai_chat_support_screen.dart';
+import 'google_calendar_sync_screen.dart';
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
 
@@ -600,6 +601,24 @@ class _CalendarScreenState extends State<CalendarScreen> with TickerProviderStat
                     builder: (context) => AIChatScreen(),
                   ),
                 );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.settings_rounded, color: Color(0xFFE91E63)),
+              title: const Text('Đồng bộ Google Calendar'),
+              onTap: () {
+                Navigator.pop(context); // Close drawer
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => GoogleCalendarSyncScreen(),
+                  ),
+                ).then((result) {
+                  // If events were imported, reload the calendar
+                  if (result == true) {
+                    _loadEvents();
+                  }
+                });
               },
             ),
           ],

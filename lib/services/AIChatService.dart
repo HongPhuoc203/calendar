@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AIChatService {
-  static const String _geminiApiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
+  static const String _geminiApiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
   static final String _apiKey = dotenv.env['GEMINI_API_KEY'] ?? '';
   
   // Cache để tránh gọi API quá nhiều
@@ -45,18 +45,26 @@ Hãy trả lời như một chuyên gia thực thụ, thân thiện và hữu í
 ''';
 
   static Future<String> sendMessage(String userMessage, {List<Map<String, String>>? chatHistory}) async {
+    // Debug: In ra thông tin API key
+    print('🔑 API Key length: ${_apiKey.length}');
+    print('🔑 API Key first 10 chars: ${_apiKey.length > 10 ? _apiKey.substring(0, 10) : _apiKey}...');
+    
     // Kiểm tra API key
     if (_apiKey.isEmpty) {
+      print('❌ API key is empty!');
       return '❌ Lỗi: API key chưa được cấu hình. Vui lòng kiểm tra file .env';
     }
 
     // Kiểm tra cache
     String cacheKey = _generateCacheKey(userMessage, chatHistory);
     if (_responseCache.containsKey(cacheKey)) {
+      print('📦 Using cached response');
       return _responseCache[cacheKey]!;
     }
 
     try {
+      print('🚀 Sending request to Gemini API...');
+      
       // Tạo context từ lịch sử chat (chỉ lấy 3 tin nhắn gần nhất)
       String fullPrompt = _systemPrompt;
       
@@ -71,78 +79,108 @@ Hãy trả lời như một chuyên gia thực thụ, thân thiện và hữu í
       
       fullPrompt += '\n💬 Câu hỏi hiện tại: $userMessage\n\nHãy trả lời ngắn gọn và hữu ích:';
 
+      final requestBody = jsonEncode({
+        'contents': [
+          {
+            'parts': [
+              {'text': fullPrompt}
+            ]
+          }
+        ],
+        'generationConfig': {
+          'temperature': 0.7,
+          'topK': 40,
+          'topP': 0.9,
+          'maxOutputTokens': 1024,
+          'responseMimeType': 'text/plain',
+        },
+        'safetySettings': [
+          {
+            'category': 'HARM_CATEGORY_HARASSMENT',
+            'threshold': 'BLOCK_MEDIUM_AND_ABOVE'
+          },
+          {
+            'category': 'HARM_CATEGORY_HATE_SPEECH', 
+            'threshold': 'BLOCK_MEDIUM_AND_ABOVE'
+          },
+          {
+            'category': 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+            'threshold': 'BLOCK_MEDIUM_AND_ABOVE'
+          },
+          {
+            'category': 'HARM_CATEGORY_DANGEROUS_CONTENT',
+            'threshold': 'BLOCK_MEDIUM_AND_ABOVE'
+          }
+        ]
+      });
+
+      print('📤 Request URL: $_geminiApiUrl?key=${_apiKey.substring(0, 10)}...');
+      print('📤 Request body length: ${requestBody.length}');
+
       final response = await http.post(
         Uri.parse('$_geminiApiUrl?key=$_apiKey'),
         headers: {
           'Content-Type': 'application/json',
         },
-        body: jsonEncode({
-          'contents': [
-            {
-              'parts': [
-                {'text': fullPrompt}
-              ]
-            }
-          ],
-          'generationConfig': {
-            'temperature': 0.7, // Giảm để ổn định hơn
-            'topK': 40,
-            'topP': 0.9,
-            'maxOutputTokens': 1024, // Giảm để phản hồi ngắn gọn hơn
-            'responseMimeType': 'text/plain',
-          },
-          'safetySettings': [
-            {
-              'category': 'HARM_CATEGORY_HARASSMENT',
-              'threshold': 'BLOCK_MEDIUM_AND_ABOVE'
-            },
-            {
-              'category': 'HARM_CATEGORY_HATE_SPEECH', 
-              'threshold': 'BLOCK_MEDIUM_AND_ABOVE'
-            },
-            {
-              'category': 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-              'threshold': 'BLOCK_MEDIUM_AND_ABOVE'
-            },
-            {
-              'category': 'HARM_CATEGORY_DANGEROUS_CONTENT',
-              'threshold': 'BLOCK_MEDIUM_AND_ABOVE'
-            }
-          ]
-        }),
-      );
+        body: requestBody,
+      ).timeout(Duration(seconds: 30));
+
+      print('📥 Response status: ${response.statusCode}');
+      print('📥 Response body length: ${response.body.length}');
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = jsonDecode(response.body);
+        print('✅ Response data structure: ${data.keys.toList()}');
         
         if (data['candidates'] != null && data['candidates'].isNotEmpty) {
-          String aiResponse = data['candidates'][0]['content']['parts'][0]['text'] ?? 
-                              'Xin lỗi, tôi không thể trả lời câu hỏi này.';
+          final candidates = data['candidates'] as List;
+          print('📋 Number of candidates: ${candidates.length}');
           
-          // Lưu vào cache
-          _responseCache[cacheKey] = aiResponse;
-          
-          // Giới hạn cache size
-          if (_responseCache.length > 50) {
-            _responseCache.remove(_responseCache.keys.first);
+          if (candidates[0]['content'] != null && 
+              candidates[0]['content']['parts'] != null &&
+              candidates[0]['content']['parts'].isNotEmpty) {
+            
+            String aiResponse = candidates[0]['content']['parts'][0]['text'] ?? 
+                                'Xin lỗi, tôi không thể trả lời câu hỏi này.';
+            
+            print('✅ AI response length: ${aiResponse.length}');
+            print('✅ AI response preview: ${aiResponse.substring(0, aiResponse.length > 100 ? 100 : aiResponse.length)}...');
+            
+            // Lưu vào cache
+            _responseCache[cacheKey] = aiResponse;
+            
+            // Giới hạn cache size
+            if (_responseCache.length > 50) {
+              _responseCache.remove(_responseCache.keys.first);
+            }
+            
+            return aiResponse;
+          } else {
+            print('❌ No text content in response');
+            return 'Xin lỗi, AI không thể tạo phản hồi phù hợp.';
           }
-          
-          return aiResponse;
         } else {
+          print('❌ No candidates in response: ${data}');
           return _handleApiError(data);
         }
       } else if (response.statusCode == 429) {
+        print('⏳ Rate limit exceeded');
         return '⏳ Đã vượt quá giới hạn API. Vui lòng thử lại sau 1 phút.';
       } else {
+        print('❌ API Error ${response.statusCode}: ${response.body}');
         return '❌ Lỗi API (${response.statusCode}). Vui lòng thử lại sau.';
       }
       
     } catch (e) {
-      print('AI Chat Error: $e');
-      if (e.toString().contains('SocketException')) {
+      print('💥 Exception in sendMessage: $e');
+      print('💥 Exception type: ${e.runtimeType}');
+      
+      if (e.toString().contains('SocketException') || e.toString().contains('TimeoutException')) {
         return '🌐 Không có kết nối internet. Vui lòng kiểm tra mạng.';
+      } else if (e.toString().contains('FormatException')) {
+        return '📝 Lỗi định dạng phản hồi từ server. Vui lòng thử lại.';
       }
-      return '❌ Không thể kết nối với trợ lý AI. Vui lòng thử lại.';
+      return '❌ Không thể kết nối với trợ lý AI. Lỗi: ${e.toString().substring(0, 100)}';
     }
   }
 

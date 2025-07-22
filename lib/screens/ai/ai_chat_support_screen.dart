@@ -43,15 +43,23 @@ class _AIChatScreenState extends State<AIChatScreen> {
     _messageController.clear();
     _scrollToBottom();
 
-    // Chuẩn bị lịch sử chat
-    List<Map<String, String>> chatHistory = _messages
-        .where((msg) => !msg.isUser)
-        .take(3) // Chỉ lấy 3 tin nhắn gần nhất để tiết kiệm token
-        .map((msg) => {
-          'user': _messages[_messages.indexOf(msg) - 1]?.text ?? '',
-          'assistant': msg.text,
-        })
-        .toList();
+    // Chuẩn bị lịch sử chat - sửa lỗi logic
+    List<Map<String, String>> chatHistory = [];
+    
+    // Lấy các cặp user-assistant gần đây nhất (tối đa 3 cặp)
+    for (int i = _messages.length - 2; i >= 1; i -= 2) {
+      if (chatHistory.length >= 3) break;
+      
+      // Kiểm tra xem có đủ 2 tin nhắn (user và assistant) không
+      if (i >= 1 && 
+          _messages[i].isUser == false && // assistant message
+          _messages[i - 1].isUser == true) { // user message
+        chatHistory.add({
+          'user': _messages[i - 1].text,
+          'assistant': _messages[i].text,
+        });
+      }
+    }
 
     try {
       String response = await AIChatService.sendMessage(message, chatHistory: chatHistory);
@@ -66,6 +74,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
         _isLoading = false;
       });
     } catch (e) {
+      print('Error in _sendMessage: $e');
       setState(() {
         _messages.add(ChatMessage(
           text: 'Xin lỗi, có lỗi xảy ra. Vui lòng thử lại sau.',

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../models/event.dart';
 import '../../services/event_service.dart';
 import '../../services/auth_services.dart';
@@ -36,8 +39,10 @@ class _ExpenseStatisticsScreenState extends State<ExpenseStatisticsScreen>
   // Animation controllers
   late AnimationController _fadeController;
   late AnimationController _slideController;
+  late AnimationController _chartController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
+  late Animation<double> _chartAnimation;
 
   @override
   void initState() {
@@ -57,6 +62,11 @@ class _ExpenseStatisticsScreenState extends State<ExpenseStatisticsScreen>
       vsync: this,
     );
     
+    _chartController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    );
+    
     _fadeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
@@ -73,8 +83,17 @@ class _ExpenseStatisticsScreenState extends State<ExpenseStatisticsScreen>
       curve: Curves.easeOutCubic,
     ));
     
+    _chartAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _chartController,
+      curve: Curves.elasticOut,
+    ));
+    
     _fadeController.forward();
     _slideController.forward();
+    _chartController.forward();
   }
 
   Future<void> _loadEvents() async {
@@ -138,11 +157,45 @@ class _ExpenseStatisticsScreenState extends State<ExpenseStatisticsScreen>
 
   double get _totalExpense {
     return _filteredEvents.fold(0.0, (sum, event) => sum + event.cost);
-   }
+  }
 
   double get _averageExpense {
     if (_filteredEvents.isEmpty) return 0.0;
     return _totalExpense / _filteredEvents.length;
+  }
+
+  int get _totalEvents {
+    return _filteredEvents.length;
+  }
+
+  int get _freeEvents {
+    return _filteredEvents.where((event) => event.cost == 0).length;
+  }
+
+  int get _paidEvents {
+    return _filteredEvents.where((event) => event.cost > 0).length;
+  }
+
+  // Category-based statistics
+  Map<String, double> get _expensesByCategory {
+    final Map<String, double> categoryData = {};
+    
+    for (final event in _filteredEvents) {
+      String category;
+      if (event.cost == 0) {
+        category = 'Miễn phí';
+      } else if (event.cost <= 100000) {
+        category = 'Chi phí thấp (≤100k)';
+      } else if (event.cost <= 500000) {
+        category = 'Chi phí trung bình (100k-500k)';
+      } else {
+        category = 'Chi phí cao (>500k)';
+      }
+      
+      categoryData[category] = (categoryData[category] ?? 0) + event.cost;
+    }
+    
+    return categoryData;
   }
 
   Map<String, double> get _monthlyExpenses {
@@ -157,8 +210,7 @@ class _ExpenseStatisticsScreenState extends State<ExpenseStatisticsScreen>
   }
 
   List<PieChartSectionData> get _pieChartSections {
-    // Group events by month for pie chart
-    final monthlyData = _monthlyExpenses;
+    final categoryData = _expensesByCategory;
     final total = _totalExpense;
     
     if (total == 0) return [];
@@ -170,16 +222,10 @@ class _ExpenseStatisticsScreenState extends State<ExpenseStatisticsScreen>
       const Color(0xFF3F51B5),
       const Color(0xFF2196F3),
       const Color(0xFF00BCD4),
-      const Color(0xFF009688),
-      const Color(0xFF4CAF50),
-      const Color(0xFF8BC34A),
-      const Color(0xFFCDDC39),
-      const Color(0xFFFFEB3B),
-      const Color(0xFFFFC107),
     ];
     
     int colorIndex = 0;
-    return monthlyData.entries.map((entry) {
+    return categoryData.entries.map((entry) {
       final percentage = (entry.value / total * 100);
       final color = colors[colorIndex % colors.length];
       colorIndex++;
@@ -244,6 +290,95 @@ class _ExpenseStatisticsScreenState extends State<ExpenseStatisticsScreen>
     return '${isIncrease ? '+' : ''}${percentChange.toStringAsFixed(1)}% so với tháng trước';
   }
 
+  String get _eventCountComparison {
+    final now = DateTime.now();
+    final currentMonthEvents = _events
+        .where((e) => e.startTime.month == now.month && e.startTime.year == now.year)
+        .length;
+        
+    final previousMonthEvents = _events
+        .where((e) => e.startTime.month == now.month - 1 && e.startTime.year == now.year)
+        .length;
+    
+    if (previousMonthEvents == 0) return 'Tháng trước chưa có sự kiện';
+    
+    final change = currentMonthEvents - previousMonthEvents;
+    if (change == 0) return 'Giữ nguyên so với tháng trước';
+    
+    return '${change > 0 ? '+' : ''}$change sự kiện so với tháng trước';
+  }
+
+  Future<void> _exportStatistics() async {
+    try {
+      final report = _generateTextReport();
+      
+      final directory = await getApplicationDocumentsDirectory();
+      final file = File('${directory.path}/expense_report_${DateFormat('ddMMyyyy_HHmmss').format(DateTime.now())}.txt');
+      await file.writeAsString(report);
+      
+      await Share.shareXFiles([XFile(file.path)], text: 'Báo cáo thống kê chi phí');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đã xuất báo cáo thành công!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Lỗi khi xuất báo cáo'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  String _generateTextReport() {
+    final buffer = StringBuffer();
+    buffer.writeln('=== BÁO CÁO THỐNG KÊ CHI PHÍ ===');
+    buffer.writeln('Thời gian tạo: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}');
+    buffer.writeln('Khoảng thời gian: $_selectedTimeFilter');
+    if (_customDateRange != null) {
+      buffer.writeln('Từ: ${DateFormat('dd/MM/yyyy').format(_customDateRange!.start)}');
+      buffer.writeln('Đến: ${DateFormat('dd/MM/yyyy').format(_customDateRange!.end)}');
+    }
+    buffer.writeln('');
+    
+    buffer.writeln('=== TỔNG QUAN ===');
+    buffer.writeln('Tổng số sự kiện: $_totalEvents');
+    buffer.writeln('Sự kiện miễn phí: $_freeEvents');
+    buffer.writeln('Sự kiện có phí: $_paidEvents');
+    buffer.writeln('Tổng chi phí: ${NumberFormat.currency(locale: 'vi_VN', symbol: 'đ').format(_totalExpense)}');
+    buffer.writeln('Chi phí trung bình: ${NumberFormat.currency(locale: 'vi_VN', symbol: 'đ').format(_averageExpense)}');
+    buffer.writeln('');
+    
+    buffer.writeln('=== XU HƯỚNG ===');
+    buffer.writeln('So sánh chi phí: $_trendComparison');
+    buffer.writeln('So sánh số lượng: $_eventCountComparison');
+    buffer.writeln('');
+    
+    buffer.writeln('=== CHI TIẾT THEO THÁNG ===');
+    final monthlyData = _monthlyExpenses;
+    monthlyData.entries.forEach((entry) {
+      buffer.writeln('${entry.key}: ${NumberFormat.currency(locale: 'vi_VN', symbol: 'đ').format(entry.value)}');
+    });
+    buffer.writeln('');
+    
+    buffer.writeln('=== PHÂN LOẠI CHI PHÍ ===');
+    final categoryData = _expensesByCategory;
+    categoryData.entries.forEach((entry) {
+      final percentage = (entry.value / _totalExpense * 100);
+      buffer.writeln('${entry.key}: ${NumberFormat.currency(locale: 'vi_VN', symbol: 'đ').format(entry.value)} (${percentage.toStringAsFixed(1)}%)');
+    });
+    
+    return buffer.toString();
+  }
+
   Widget _buildAppBar() {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 50, 16, 20),
@@ -289,6 +424,24 @@ class _ExpenseStatisticsScreenState extends State<ExpenseStatisticsScreen>
                 ),
                 
               ],
+            ),
+          ),
+          // Export button
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            child: IconButton(
+              onPressed: _exportStatistics,
+              icon: const Icon(
+                Icons.share_rounded,
+                color: Colors.white,
+                size: 24,
+              ),
+              style: IconButton.styleFrom(
+                backgroundColor: Colors.blue.withAlpha((0.2 * 255).round()),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             ),
           ),
           Container(
@@ -450,24 +603,50 @@ class _ExpenseStatisticsScreenState extends State<ExpenseStatisticsScreen>
   Widget _buildSummaryCards() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
+      child: Column(
         children: [
-          Expanded(
-            child: _buildSummaryCard(
-              title: 'Tổng chi tiêu',
-              value: NumberFormat.currency(locale: 'vi_VN', symbol: 'đ').format(_totalExpense),
-              icon: Icons.account_balance_wallet_rounded,
-              color: const Color(0xFFE91E63),
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: _buildSummaryCard(
+                  title: 'Tổng chi tiêu',
+                  value: NumberFormat.currency(locale: 'vi_VN', symbol: 'đ').format(_totalExpense),
+                  icon: Icons.account_balance_wallet_rounded,
+                  color: const Color(0xFFE91E63),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildSummaryCard(
+                  title: 'Trung bình',
+                  value: NumberFormat.currency(locale: 'vi_VN', symbol: 'đ').format(_averageExpense),
+                  icon: Icons.trending_up_rounded,
+                  color: const Color(0xFF9C27B0),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _buildSummaryCard(
-              title: 'Trung bình',
-              value: NumberFormat.currency(locale: 'vi_VN', symbol: 'đ').format(_averageExpense),
-              icon: Icons.trending_up_rounded,
-              color: const Color(0xFF9C27B0),
-            ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildSummaryCard(
+                  title: 'Tổng sự kiện',
+                  value: '$_totalEvents sự kiện',
+                  icon: Icons.event_rounded,
+                  color: const Color(0xFF2196F3),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildSummaryCard(
+                  title: 'Miễn phí',
+                  value: '$_freeEvents/$_totalEvents',
+                  icon: Icons.free_breakfast_rounded,
+                  color: const Color(0xFF4CAF50),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -517,7 +696,7 @@ class _ExpenseStatisticsScreenState extends State<ExpenseStatisticsScreen>
           Text(
             value,
             style: const TextStyle(
-              fontSize: 18,
+              fontSize: 16,
               fontWeight: FontWeight.bold,
               color: Colors.black87,
             ),
@@ -561,7 +740,7 @@ class _ExpenseStatisticsScreenState extends State<ExpenseStatisticsScreen>
               ),
               const SizedBox(width: 12),
               const Text(
-                'Xu hướng chi tiêu',
+                'Xu hướng so sánh',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -577,19 +756,40 @@ class _ExpenseStatisticsScreenState extends State<ExpenseStatisticsScreen>
               color: Colors.grey[50],
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Row(
+            child: Column(
               children: [
-                const Icon(Icons.compare_arrows_rounded, color: Colors.grey),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    _trendComparison,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
+                Row(
+                  children: [
+                    const Icon(Icons.attach_money_rounded, color: Colors.green, size: 20),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Chi phí: $_trendComparison',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(Icons.event_note_rounded, color: Colors.blue, size: 20),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Sự kiện: $_eventCountComparison',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -599,8 +799,9 @@ class _ExpenseStatisticsScreenState extends State<ExpenseStatisticsScreen>
     );
   }
 
-  Widget _buildPieChart() {
+  Widget _buildCategoryPieChart() {
     final sections = _pieChartSections;
+    final categoryData = _expensesByCategory;
     
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -635,7 +836,7 @@ class _ExpenseStatisticsScreenState extends State<ExpenseStatisticsScreen>
               ),
               const SizedBox(width: 12),
               const Text(
-                'Phân bổ theo tháng',
+                'Phân loại chi phí',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -646,32 +847,73 @@ class _ExpenseStatisticsScreenState extends State<ExpenseStatisticsScreen>
           ),
           const SizedBox(height: 20),
           if (sections.isNotEmpty)
-            SizedBox(
-              height: 200,
-              child: PieChart(
-                PieChartData(
-                  sections: sections,
-                  centerSpaceRadius: 40,
-                  sectionsSpace: 2,
+            Column(
+              children: [
+                ScaleTransition(
+                  scale: _chartAnimation,
+                  child: SizedBox(
+                    height: 200,
+                    child: PieChart(
+                      PieChartData(
+                        sections: sections,
+                        centerSpaceRadius: 40,
+                        sectionsSpace: 2,
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(height: 16),
+                // Legend
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: categoryData.entries.map((entry) {
+                    final index = categoryData.keys.toList().indexOf(entry.key);
+                    final colors = [
+                      const Color(0xFFE91E63),
+                      const Color(0xFF9C27B0),
+                      const Color(0xFF673AB7),
+                      const Color(0xFF3F51B5),
+                      const Color(0xFF2196F3),
+                      const Color(0xFF00BCD4),
+                    ];
+                    final color = colors[index % colors.length];
+                    
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: color.withAlpha((0.1 * 255).round()),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 12,
+                            height: 12,
+                            decoration: BoxDecoration(
+                              color: color,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            entry.key,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: color,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
             )
           else
-            Container(
-              height: 200,
-              alignment: Alignment.center,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.pie_chart_outline, size: 48, color: Colors.grey[400]),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Chưa có dữ liệu',
-                    style: TextStyle(color: Colors.grey[600]),
-                  ),
-                ],
-              ),
-            ),
+            _buildEmptyState('pie_chart_outline', 'Chưa có dữ liệu phân loại'),
         ],
       ),
     );
@@ -725,70 +967,190 @@ class _ExpenseStatisticsScreenState extends State<ExpenseStatisticsScreen>
           ),
           const SizedBox(height: 20),
           if (barData.isNotEmpty)
-            SizedBox(
-              height: 200,
-              child: BarChart(
-                BarChartData(
-                  barGroups: barData,
-                  titlesData: FlTitlesData(
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 60,
-                        getTitlesWidget: (value, meta) {
-                          return Text(
-                            NumberFormat.compact(locale: 'vi_VN').format(value),
-                            style: const TextStyle(fontSize: 10),
-                          );
-                        },
-                      ),
-                    ),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) {
-                          final index = value.toInt();
-                          final entries = monthlyData.entries.toList()
-                            ..sort((a, b) => a.key.compareTo(b.key));
-                          if (index >= 0 && index < entries.length) {
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 8),
-                              child: Text(
-                                entries[index].key,
-                                style: const TextStyle(fontSize: 10),
-                              ),
+            ScaleTransition(
+              scale: _chartAnimation,
+              child: SizedBox(
+                height: 200,
+                child: BarChart(
+                  BarChartData(
+                    barGroups: barData,
+                    titlesData: FlTitlesData(
+                      leftTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 60,
+                          getTitlesWidget: (value, meta) {
+                            return Text(
+                              NumberFormat.compact(locale: 'vi_VN').format(value),
+                              style: const TextStyle(fontSize: 10),
                             );
-                          }
-                          return const Text('');
-                        },
+                          },
+                        ),
                       ),
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          getTitlesWidget: (value, meta) {
+                            final index = value.toInt();
+                            final entries = monthlyData.entries.toList()
+                              ..sort((a, b) => a.key.compareTo(b.key));
+                            if (index >= 0 && index < entries.length) {
+                              return Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: Text(
+                                  entries[index].key,
+                                  style: const TextStyle(fontSize: 10),
+                                ),
+                              );
+                            }
+                            return const Text('');
+                          },
+                        ),
+                      ),
+                      rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                     ),
-                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    borderData: FlBorderData(show: false),
+                    gridData: const FlGridData(show: true),
                   ),
-                  borderData: FlBorderData(show: false),
-                  gridData: const FlGridData(show: true),
                 ),
               ),
             )
           else
-            Container(
-              height: 200,
-              alignment: Alignment.center,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+            _buildEmptyState('bar_chart_outlined', 'Chưa có dữ liệu theo tháng'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(String iconName, String message) {
+    IconData icon;
+    switch (iconName) {
+      case 'pie_chart_outline':
+        icon = Icons.pie_chart_outline;
+        break;
+      case 'bar_chart_outlined':
+        icon = Icons.bar_chart_outlined;
+        break;
+      default:
+        icon = Icons.error_outline;
+    }
+    
+    return Container(
+      height: 200,
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 48, color: Colors.grey[400]),
+          const SizedBox(height: 12),
+          Text(
+            message,
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Hãy thêm một số sự kiện để xem thống kê',
+            style: TextStyle(
+              color: Colors.grey[500],
+              fontSize: 14,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadingSkeleton() {
+    return Column(
+      children: [
+        // Time filter skeleton
+        Container(
+          margin: const EdgeInsets.all(16),
+          height: 120,
+          decoration: BoxDecoration(
+            color: Colors.grey[300],
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        // Summary cards skeleton
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(
+            children: [
+              Row(
                 children: [
-                  Icon(Icons.bar_chart_outlined, size: 48, color: Colors.grey[400]),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Chưa có dữ liệu',
-                    style: TextStyle(color: Colors.grey[600]),
+                  Expanded(
+                    child: Container(
+                      height: 120,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Container(
+                      height: 120,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
                   ),
                 ],
               ),
-            ),
-        ],
-      ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      height: 120,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Container(
+                      height: 120,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        // Charts skeleton
+        const SizedBox(height: 16),
+        Container(
+          margin: const EdgeInsets.all(16),
+          height: 280,
+          decoration: BoxDecoration(
+            color: Colors.grey[300],
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          height: 280,
+          decoration: BoxDecoration(
+            color: Colors.grey[300],
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      ],
     );
   }
 
@@ -803,11 +1165,7 @@ class _ExpenseStatisticsScreenState extends State<ExpenseStatisticsScreen>
             _buildAppBar(),
             Expanded(
               child: _isLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(
-                        color: Color(0xFFE91E63),
-                      ),
-                    )
+                  ? _buildLoadingSkeleton()
                   : SlideTransition(
                       position: _slideAnimation,
                       child: SingleChildScrollView(
@@ -817,7 +1175,7 @@ class _ExpenseStatisticsScreenState extends State<ExpenseStatisticsScreen>
                             _buildSummaryCards(),
                             const SizedBox(height: 16),
                             _buildTrendCard(),
-                            _buildPieChart(),
+                            _buildCategoryPieChart(),
                             _buildBarChart(),
                             const SizedBox(height: 32),
                           ],
@@ -835,6 +1193,7 @@ class _ExpenseStatisticsScreenState extends State<ExpenseStatisticsScreen>
   void dispose() {
     _fadeController.dispose();
     _slideController.dispose();
+    _chartController.dispose();
     super.dispose();
   }
-}
+} 

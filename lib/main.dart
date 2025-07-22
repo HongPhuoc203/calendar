@@ -17,7 +17,7 @@ void main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform,);
   await NotificationService().initialize();
   await NotificationService().requestPermission();
-  await dotenv.load(fileName: ".env");
+  await dotenv.load(fileName: "GeminiAPI.env");
   runApp(const MyApp());
 }
 

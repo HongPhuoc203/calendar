@@ -98,60 +98,96 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     }
   }
 
-  Widget _buildGlobalLogo() {
-    return Container(
-      width: 120,
-      height: 120,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFFE0E0E0),
-            Color(0xFFBDBDBD),
-            Color(0xFF9E9E9E),
-          ],
+  // Widget _buildGlobalLogo() {
+  //   return Container(
+  //     width: 120,
+  //     height: 120,
+  //     decoration: BoxDecoration(
+  //       shape: BoxShape.circle,
+  //       gradient: const LinearGradient(
+  //         begin: Alignment.topLeft,
+  //         end: Alignment.bottomRight,
+  //         colors: [
+  //           Color(0xFFE0E0E0),
+  //           Color(0xFFBDBDBD),
+  //           Color(0xFF9E9E9E),
+  //         ],
+  //       ),
+  //       boxShadow: [
+  //         BoxShadow(
+  //           color: Colors.black.withOpacity(0.3),
+  //           blurRadius: 20,
+  //           offset: const Offset(0, 10),
+  //         ),
+  //       ],
+  //     ),
+  //     child: Stack(
+  //       children: [
+  //         // Background circle
+  //         Container(
+  //           width: 120,
+  //           height: 120,
+  //           decoration: const BoxDecoration(
+  //             shape: BoxShape.circle,
+  //             gradient: LinearGradient(
+  //               begin: Alignment.topLeft,
+  //               end: Alignment.bottomRight,
+  //               colors: [
+  //                 Color(0xFFF5F5F5),
+  //                 Color(0xFFE0E0E0),
+  //                 Color(0xFFBDBDBD),
+  //               ],
+  //             ),
+  //           ),
+  //         ),
+  //         // Star shape
+  //         Center(
+  //           child: CustomPaint(
+  //             size: const Size(100, 10),
+  //             painter: StarPainter(),
+  //           ),
+  //         ),
+  //       ],
+  //     ),
+      
+  //   );
+  // }
+  
+Widget _buildGlobalLogo() {
+  return Container(
+    width: 120,
+    height: 120,
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(60), // Bằng một nửa width/height để tạo hình tròn hoàn hảo
+      gradient: const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Color(0xFFE0E0E0),
+          Color(0xFFBDBDBD),
+          Color(0xFF9E9E9E),
+        ],
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withAlpha((0.3*255).round()),
+          blurRadius: 20,
+          offset: const Offset(0, 10),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
+      ],
+    ),
+    child: ClipRRect(
+      borderRadius: BorderRadius.circular(60), // Cùng giá trị với container để tạo hình tròn
+      child: Image.asset(
+        'lib/Picture/cglobal.jpg',
+        width: 120, // Cùng kích thước với container
+        height: 120, // Cùng kích thước với container
+        fit: BoxFit.cover, // Giữ tỷ lệ ảnh và lấp đầy, có thể bị cắt một phần
       ),
-      child: Stack(
-        children: [
-          // Background circle
-          Container(
-            width: 120,
-            height: 120,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFFF5F5F5),
-                  Color(0xFFE0E0E0),
-                  Color(0xFFBDBDBD),
-                ],
-              ),
-            ),
-          ),
-          // Star shape
-          Center(
-            child: CustomPaint(
-              size: const Size(60, 60),
-              painter: StarPainter(),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
+    ),
+  );
+}
+  
   Widget _buildCustomTextField({
     required TextEditingController controller,
     required String label,
@@ -272,7 +308,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                           ],
                         ).createShader(bounds),
                         child: const Text(
-                          'Global',
+                          'C Global',
                           style: TextStyle(
                             fontSize: 36,
                             fontWeight: FontWeight.bold,
@@ -461,42 +497,4 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   }
 }
 
-// Custom painter for star shape
-class StarPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.black
-      ..style = PaintingStyle.fill;
-
-    final path = Path();
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2;
-
-    // Create star shape
-    for (int i = 0; i < 5; i++) {
-      final angle = (i * 4 * 3.14159) / 5 - 3.14159 / 2;
-      final x = center.dx + radius * 0.8 * cos(angle);
-      final y = center.dy + radius * 0.8 * sin(angle);
-      
-      if (i == 0) {
-        path.moveTo(x, y);
-      } else {
-        path.lineTo(x, y);
-      }
-      
-      // Inner point
-      final innerAngle = angle + 3.14159 / 5;
-      final innerX = center.dx + radius * 0.3 * cos(innerAngle);
-      final innerY = center.dy + radius * 0.3 * sin(innerAngle);
-      path.lineTo(innerX, innerY);
-    }
-    
-    path.close();
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(CustomPainter oldDelegate) => false;
-}
 
