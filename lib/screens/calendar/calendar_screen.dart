@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
+import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/event.dart';
 import '../../services/event_service.dart';
 import '../../services/auth_services.dart';
 import '../../services/notification_services.dart';
 import '../../screens/expenses/expense_statistics_screen.dart';
 import '../../screens/ai/ai_chat_support_screen.dart';
+import '../../screens/ai/chat_history_screen.dart';
 import 'google_calendar_sync_screen.dart';
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -28,6 +31,10 @@ class _CalendarScreenState extends State<CalendarScreen> with TickerProviderStat
   late Animation<double> _fadeAnimation;
   late AnimationController _fabController;
   late Animation<double> _fabAnimation;
+  
+  // Stream subscriptions to manage events loading and auth state
+  StreamSubscription<List<Event>>? _eventsSubscription;
+  StreamSubscription<User?>? _authSubscription;
 
   @override
   void initState() {
@@ -62,25 +69,52 @@ class _CalendarScreenState extends State<CalendarScreen> with TickerProviderStat
     
     _animationController.forward();
     _fabController.forward();
-    _loadEvents();
+    
+    // Listen for authentication state changes
+    _authSubscription = _authService.authStateChanges.listen((user) {
+      if (user == null) {
+        // User logged out, clear all data
+        _clearEventsData();
+      } else {
+        // User logged in, load events
+        _loadEvents();
+      }
+    });
+    
+    // Initial load if user is already authenticated
+    if (_authService.currentUser != null) {
+      _loadEvents();
+    }
   }
 
   @override
   void dispose() {
+    _eventsSubscription?.cancel();
+    _authSubscription?.cancel();
     _animationController.dispose();
     _fabController.dispose();
     super.dispose();
   }
 
   void _loadEvents() {
+    // Cancel any existing subscription first
+    _eventsSubscription?.cancel();
+    
     setState(() => _isLoading = true);
     
     final userId = _authService.currentUser?.uid;
     print('Current user ID: $userId');
+    
     if (userId != null) {
       print('Loading events for user: $userId');
-      _eventService.getUserEvents(userId).listen(
+      _eventsSubscription = _eventService.getUserEvents(userId).listen(
         (events) {
+          // Check if widget is still mounted and user is still authenticated
+          if (!mounted || _authService.currentUser?.uid != userId) {
+            print('Widget unmounted or user changed, stopping event loading');
+            return;
+          }
+          
           print('Received ${events.length} events');
           if (events.isEmpty) {
             print('No events found for user $userId');
@@ -103,9 +137,12 @@ class _CalendarScreenState extends State<CalendarScreen> with TickerProviderStat
         },
         onError: (error) {
           print('Error loading events: $error');
-          setState(() => _isLoading = false);
           if (mounted) {
-            _showCustomSnackBar('Lỗi tải sự kiện: $error', isError: true);
+            setState(() => _isLoading = false);
+            // Only show error if user is still authenticated
+            if (_authService.currentUser?.uid == userId) {
+              _showCustomSnackBar('Lỗi tải sự kiện: $error', isError: true);
+            }
           }
         },
       );
@@ -116,6 +153,15 @@ class _CalendarScreenState extends State<CalendarScreen> with TickerProviderStat
         _showCustomSnackBar('Vui lòng đăng nhập để xem sự kiện', isError: true);
       }
     }
+  }
+
+  void _clearEventsData() {
+    _eventsSubscription?.cancel();
+    _eventsSubscription = null;
+    setState(() {
+      _events.clear();
+      _isLoading = false;
+    });
   }
 
   List<Event> _getEventsForDay(DateTime day) {
@@ -238,6 +284,9 @@ class _CalendarScreenState extends State<CalendarScreen> with TickerProviderStat
           const SizedBox(width: 8),
           IconButton(
             onPressed: () async {
+              // Clear events data and cancel subscription before logout
+              _clearEventsData();
+              
               await _authService.signOut();
               if (!mounted) return;
               _showCustomSnackBar('Đăng xuất thành công');
@@ -598,11 +647,12 @@ class _CalendarScreenState extends State<CalendarScreen> with TickerProviderStat
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => AIChatScreen(),
+                    builder: (context) => const AIChatScreen(),
                   ),
                 );
               },
             ),
+            
             ListTile(
               leading: const Icon(Icons.settings_rounded, color: Color(0xFFE91E63)),
               title: const Text('Đồng bộ Google Calendar'),

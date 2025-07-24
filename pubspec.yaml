@@ -33,6 +33,7 @@ dependencies:
   # File operations and sharing
   path_provider: ^2.1.4
   share_plus: ^10.0.3
+  shared_preferences: ^2.3.3
 
   # Google Calendar integration dependencies
   googleapis: ^14.0.0

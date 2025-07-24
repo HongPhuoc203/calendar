@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
 import '../../services/AIChatService.dart';
+import '../../models/conversation.dart';
+import '../../services/conversation_service.dart';
+import 'chat_history_screen.dart';
 
 class AIChatScreen extends StatefulWidget {
+  final Conversation? initialConversation;
+  
+  const AIChatScreen({super.key, this.initialConversation});
+  
   @override
   _AIChatScreenState createState() => _AIChatScreenState();
 }
@@ -11,34 +18,81 @@ class _AIChatScreenState extends State<AIChatScreen> {
   final ScrollController _scrollController = ScrollController();
   final List<ChatMessage> _messages = [];
   bool _isLoading = false;
+  Conversation? _currentConversation;
 
   @override
   void initState() {
     super.initState();
-    _addWelcomeMessage();
+    _initializeConversation();
+  }
+
+  Future<void> _initializeConversation() async {
+    if (widget.initialConversation != null) {
+      // Load existing conversation
+      setState(() {
+        _currentConversation = widget.initialConversation;
+        _messages.addAll(widget.initialConversation!.messages);
+      });
+    } else {
+      // Start new conversation or load current one
+      final currentConv = await ConversationService.getCurrentConversation();
+      if (currentConv != null) {
+        setState(() {
+          _currentConversation = currentConv;
+          _messages.addAll(currentConv.messages);
+        });
+      } else {
+        // Create new conversation and add welcome message
+        _currentConversation = ConversationService.createNewConversation();
+        _addWelcomeMessage();
+      }
+    }
+    _scrollToBottom();
   }
 
   void _addWelcomeMessage() {
+    final welcomeMessage = ChatMessage(
+      text: 'Xin chào! Tôi là trợ lý AI của bạn. Tôi có thể giúp bạn tư vấn về tổ chức sự kiện, ước tính chi phí, gợi ý địa điểm và nhiều hơn nữa. Bạn cần tư vấn gì?',
+      isUser: false,
+      timestamp: DateTime.now(),
+    );
+    
     setState(() {
-      _messages.add(ChatMessage(
-        text: 'Xin chào! Tôi là trợ lý AI của bạn. Tôi có thể giúp bạn tư vấn về tổ chức sự kiện, ước tính chi phí, gợi ý địa điểm và nhiều hơn nữa. Bạn cần tư vấn gì?',
-        isUser: false,
-        timestamp: DateTime.now(),
-      ));
+      _messages.add(welcomeMessage);
     });
+    
+    // Save welcome message to conversation
+    if (_currentConversation != null) {
+      _currentConversation = ConversationService.addMessageToConversation(
+        _currentConversation!,
+        welcomeMessage,
+      );
+      ConversationService.saveCurrentConversation(_currentConversation!);
+    }
   }
 
   Future<void> _sendMessage(String message) async {
     if (message.trim().isEmpty) return;
 
+    final userMessage = ChatMessage(
+      text: message,
+      isUser: true,
+      timestamp: DateTime.now(),
+    );
+
     setState(() {
-      _messages.add(ChatMessage(
-        text: message,
-        isUser: true,
-        timestamp: DateTime.now(),
-      ));
+      _messages.add(userMessage);
       _isLoading = true;
     });
+
+    // Save user message to conversation
+    if (_currentConversation != null) {
+      _currentConversation = ConversationService.addMessageToConversation(
+        _currentConversation!,
+        userMessage,
+      );
+      await ConversationService.saveCurrentConversation(_currentConversation!);
+    }
 
     _messageController.clear();
     _scrollToBottom();
@@ -64,25 +118,47 @@ class _AIChatScreenState extends State<AIChatScreen> {
     try {
       String response = await AIChatService.sendMessage(message, chatHistory: chatHistory);
       
+      final aiMessage = ChatMessage(
+        text: response,
+        isUser: false,
+        timestamp: DateTime.now(),
+        eventType: AIChatService.detectEventType(message),
+      );
+      
       setState(() {
-        _messages.add(ChatMessage(
-          text: response,
-          isUser: false,
-          timestamp: DateTime.now(),
-          eventType: AIChatService.detectEventType(message),
-        ));
+        _messages.add(aiMessage);
         _isLoading = false;
       });
+      
+      // Save AI response to conversation
+      if (_currentConversation != null) {
+        _currentConversation = ConversationService.addMessageToConversation(
+          _currentConversation!,
+          aiMessage,
+        );
+        await ConversationService.saveCurrentConversation(_currentConversation!);
+      }
     } catch (e) {
       print('Error in _sendMessage: $e');
+      final errorMessage = ChatMessage(
+        text: 'Xin lỗi, có lỗi xảy ra. Vui lòng thử lại sau.',
+        isUser: false,
+        timestamp: DateTime.now(),
+      );
+      
       setState(() {
-        _messages.add(ChatMessage(
-          text: 'Xin lỗi, có lỗi xảy ra. Vui lòng thử lại sau.',
-          isUser: false,
-          timestamp: DateTime.now(),
-        ));
+        _messages.add(errorMessage);
         _isLoading = false;
       });
+      
+      // Save error message to conversation
+      if (_currentConversation != null) {
+        _currentConversation = ConversationService.addMessageToConversation(
+          _currentConversation!,
+          errorMessage,
+        );
+        await ConversationService.saveCurrentConversation(_currentConversation!);
+      }
     }
 
     _scrollToBottom();
@@ -104,6 +180,33 @@ class _AIChatScreenState extends State<AIChatScreen> {
     _sendMessage(question);
   }
 
+  void _startNewConversation() async {
+    // Save current conversation first
+    if (_currentConversation != null && _messages.isNotEmpty) {
+      await ConversationService.saveConversation(_currentConversation!);
+    }
+    
+    // Clear current conversation
+    await ConversationService.clearCurrentConversation();
+    
+    // Reset state
+    setState(() {
+      _messages.clear();
+      _currentConversation = ConversationService.createNewConversation();
+    });
+    
+    _addWelcomeMessage();
+  }
+
+  void _showChatHistory() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const ChatHistoryScreen(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -117,6 +220,47 @@ class _AIChatScreenState extends State<AIChatScreen> {
         ),
         backgroundColor: Colors.white,
         elevation: 1,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            tooltip: 'Lịch sử trò chuyện',
+            onPressed: _showChatHistory,
+          ),
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              switch (value) {
+                case 'new_chat':
+                  _startNewConversation();
+                  break;
+                case 'history':
+                  _showChatHistory();
+                  break;
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'new_chat',
+                child: Row(
+                  children: [
+                    Icon(Icons.add_comment, size: 20),
+                    SizedBox(width: 8),
+                    Text('Cuộc trò chuyện mới'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'history',
+                child: Row(
+                  children: [
+                    Icon(Icons.history, size: 20),
+                    SizedBox(width: 8),
+                    Text('Lịch sử trò chuyện'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -323,16 +467,3 @@ class _AIChatScreenState extends State<AIChatScreen> {
   }
 }
 
-class ChatMessage {
-  final String text;
-  final bool isUser;
-  final DateTime timestamp;
-  final String? eventType;
-
-  ChatMessage({
-    required this.text,
-    required this.isUser,
-    required this.timestamp,
-    this.eventType,
-  });
-}

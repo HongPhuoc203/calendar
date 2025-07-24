@@ -45,5 +45,59 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	
+	<!-- Network Permissions -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
+	
+	<!-- Google Sign In URL Scheme -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>GoogleSignIn</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<!-- Replace with your REVERSED_CLIENT_ID from GoogleService-Info.plist -->
+				<string>com.googleusercontent.apps.972569075106-8jm3lh3nui9f4lntp0run11acca6s31d</string>
+			</array>
+		</dict>
+	</array>
+	
+	<!-- Notification Permissions -->
+	<key>UIUserNotificationSettings</key>
+	<dict>
+		<key>UIUserNotificationTypes</key>
+		<array>
+			<string>UIUserNotificationTypeAlert</string>
+			<string>UIUserNotificationTypeBadge</string>
+			<string>UIUserNotificationTypeSound</string>
+		</array>
+	</dict>
+	
+	<!-- Background Processing -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>background-processing</string>
+		<string>background-fetch</string>
+		<string>remote-notification</string>
+	</array>
+	
+	<!-- File Sharing Permissions -->
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	
+	<!-- Privacy Usage Descriptions -->
+	<key>NSUserNotificationUsageDescription</key>
+	<string>This app uses notifications to remind you of upcoming events.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>This app needs calendar access to sync with Google Calendar.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>This app may access contacts for event sharing.</string>
 </dict>
 </plist>

@@ -101,26 +101,40 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
     }
   }
 
-  Widget _buildGlobalLogo() {
-    return Container(
-      width: 100,
-      height: 100,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha((0.4 * 255).round()),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
+Widget _buildGlobalLogo() {
+  return Container(
+    width: 120,
+    height: 120,
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(60), // Bằng một nửa width/height để tạo hình tròn hoàn hảo
+      gradient: const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Color(0xFFE0E0E0),
+          Color(0xFFBDBDBD),
+          Color(0xFF9E9E9E),
         ],
       ),
-      child: CustomPaint(
-        size: const Size(100, 100),
-        painter: GlobalLogoPainter(),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withAlpha((0.3*255).round()),
+          blurRadius: 20,
+          offset: const Offset(0, 10),
+        ),
+      ],
+    ),
+    child: ClipRRect(
+      borderRadius: BorderRadius.circular(60), // Cùng giá trị với container để tạo hình tròn
+      child: Image.asset(
+        'lib/Picture/cglobal.jpg',
+        width: 120, // Cùng kích thước với container
+        height: 120, // Cùng kích thước với container
+        fit: BoxFit.cover, // Giữ tỷ lệ ảnh và lấp đầy, có thể bị cắt một phần
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildCustomTextField({
     required TextEditingController controller,
@@ -258,7 +272,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                           ],
                         ).createShader(bounds),
                         child: const Text(
-                          'Global',
+                          'C Global',
                           style: TextStyle(
                             fontSize: 30,
                             fontWeight: FontWeight.bold,

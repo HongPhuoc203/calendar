@@ -271,7 +271,6 @@ class _ExpenseStatisticsScreenState extends State<ExpenseStatisticsScreen>
     if (_filteredEvents.length < 2) return 'Chưa đủ dữ liệu để so sánh';
     
     final now = DateTime.now();
-    final currentMonth = DateTime(now.year, now.month, 1);
     final previousMonth = DateTime(now.year, now.month - 1, 1);
     
     final currentMonthExpense = _events

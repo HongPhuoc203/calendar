@@ -370,7 +370,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Text(
-                      'đ',
+                      '',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 16,
