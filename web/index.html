@@ -1,38 +1,170 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <!-- App metadata -->
+  <meta name="description" content="C Global Calendar - Quản lý lịch sự kiện thông minh với AI, thống kê chi phí và đồng bộ Google Calendar">
+  <meta name="keywords" content="calendar, event, AI, Google Calendar, expense tracking, Vietnamese">
+  <meta name="author" content="C Global Calendar">
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="C Global Calendar - Quản lý lịch thông minh">
+  <meta property="og:description" content="Ứng dụng quản lý lịch sự kiện với AI, thống kê chi phí và đồng bộ Google Calendar">
+  <meta property="og:image" content="icons/Icon-512.png">
+  
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="C Global Calendar - Quản lý lịch thông minh">
+  <meta name="twitter:description" content="Ứng dụng quản lý lịch sự kiện với AI, thống kê chi phí và đồng bộ Google Calendar">
+  <meta name="twitter:image" content="icons/Icon-512.png">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="demo_app">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="C Global Calendar">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>demo_app</title>
+  <title>C Global Calendar - Quản lý lịch thông minh</title>
   <link rel="manifest" href="manifest.json">
+
+  <!-- Firebase App (the core Firebase SDK) -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js"></script>
+
+  <!-- Firebase Configuration -->
+  <script>
+    // TODO: Replace with your Firebase config
+    // Get this from Firebase Console > Project Settings > General > Your apps > Firebase SDK snippet
+    const firebaseConfig = {
+      apiKey: "AIzaSyBQSDJVvOR7c2Obqqh_yINcv-FaruiWz64",
+      authDomain: "calendarexpenseapp.firebaseapp.com",
+      projectId: "calendarexpenseapp",
+      storageBucket: "calendarexpenseapp.firebasestorage.app",
+      messagingSenderId: "972569075106",
+      appId: "1:972569075106:web:5a27ba386c0e41d58fe6fb",
+      measurementId: "G-HGM25BQLDE"
+    };
+    
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+  </script>
+
+  <style>
+    /* Loading screen styles */
+    .loading-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    .loading-logo {
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, #E91E63, #FF1744);
+      border-radius: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 20px;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    
+    .loading-logo i {
+      font-size: 40px;
+      color: white;
+    }
+    
+    .loading-text {
+      color: white;
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+    
+    .loading-subtitle {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 14px;
+      margin-bottom: 30px;
+    }
+    
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(233, 30, 99, 0.3);
+      border-radius: 50%;
+      border-top-color: #E91E63;
+      animation: spin 1s ease-in-out infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Hide loading screen when app loads */
+    .loaded .loading-screen {
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.5s ease;
+    }
+  </style>
 </head>
 <body>
+  <!-- Loading Screen -->
+  <div id="loading-screen" class="loading-screen">
+    <div class="loading-logo">
+      <span style="font-size: 40px;">📅</span>
+    </div>
+    <div class="loading-text">C Global Calendar</div>
+    <div class="loading-subtitle">Đang tải ứng dụng...</div>
+    <div class="loading-spinner"></div>
+  </div>
+
+  <!-- Flutter App -->
+  <div id="app"></div>
+  
+  <script>
+    // Hide loading screen when Flutter app loads
+    window.addEventListener('flutter-first-frame', function () {
+      document.body.classList.add('loaded');
+      setTimeout(() => {
+        document.getElementById('loading-screen').style.display = 'none';
+      }, 500);
+    });
+    
+    // Register service worker for PWA
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('flutter-first-frame', function () {
+        navigator.serviceWorker.register('flutter_service_worker.js');
+      });
+    }
+  </script>
+
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
