@@ -8,7 +8,7 @@
 
 ### 🌟 Ứng dụng quản lý lịch sự kiện thông minh với AI
 
-**[🚀 TRY DEMO WEB APP](https://your-username.github.io/C_Global_Calendar/)**
+**[🚀 TRY DEMO WEB APP](https://HongPhuoc203.github.io/calendar/)**
 
 *Trải nghiệm đầy đủ tính năng trước khi cài đặt app!*
 
@@ -45,14 +45,14 @@
 ## 🚀 Quick Start
 
 ### 🌐 **Try Web Demo First!**
-[![Deploy Status](https://github.com/YOUR_USERNAME/C_Global_Calendar/actions/workflows/deploy-web.yml/badge.svg)](https://github.com/YOUR_USERNAME/C_Global_Calendar/actions/workflows/deploy-web.yml)
+[![Deploy Status](https://HongPhuoc203.github.io/calendar/actions/workflows/deploy-web.yml/badge.svg)](https://github.com/HongPhuoc203.github.io/calendar/actions/workflows/deploy-web.yml)
 
-**Live Demo:** https://your-username.github.io/C_Global_Calendar/
+**Live Demo:** https://HongPhuoc203.github.io/calendar/
 
 ### 📱 **Mobile Development**
 ```bash
 # Clone repository  
-git clone https://github.com/YOUR_USERNAME/C_Global_Calendar.git
+git clone https://github.com/HongPhuoc203/calendar.git
 cd C_Global_Calendar
 
 # Install dependencies
@@ -78,7 +78,7 @@ flutter run
 
 | Platform | Status | Access |
 |----------|--------|--------|
-| 🌐 **Web** | ✅ Live | [Demo Link](https://your-username.github.io/C_Global_Calendar/) |
+| 🌐 **Web** | ✅ Live | [Demo Link](https://HongPhuoc203.github.io/calendar/) |
 | 🤖 **Android** | ✅ Ready | `flutter build apk` |
 | 🍎 **iOS** | ⚙️ Setup | See iOS Guide |
 
@@ -87,7 +87,7 @@ flutter run
 ## 📖 Documentation
 
 - 📚 **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - Complete setup instructions
-- 🌐 **[Web Demo](https://your-username.github.io/C_Global_Calendar/)** - Try it now!
+- 🌐 **[Web Demo](https://HongPhuoc203.github.io/calendar/)** - Try it now!
 
 ---
 
