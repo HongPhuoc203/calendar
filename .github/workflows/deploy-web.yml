@@ -40,21 +40,8 @@ jobs:
     - name: Run tests
       run: flutter test
       
-    - name: Setup Firebase config (placeholder)
-      run: |
-        # Replace placeholder Firebase config with environment variables
-        if [ -n "${{ secrets.FIREBASE_CONFIG }}" ]; then
-          echo "Updating Firebase config..."
-          sed -i 's/YOUR_API_KEY/${{ secrets.FIREBASE_API_KEY }}/g' web/index.html
-          sed -i 's/YOUR_PROJECT_ID/${{ secrets.FIREBASE_PROJECT_ID }}/g' web/index.html
-          sed -i 's/YOUR_SENDER_ID/${{ secrets.FIREBASE_SENDER_ID }}/g' web/index.html
-          sed -i 's/YOUR_APP_ID/${{ secrets.FIREBASE_APP_ID }}/g' web/index.html
-        else
-          echo "Warning: Firebase config not provided, using placeholder values"
-        fi
-      
-          - name: Build web
-        run: flutter build web --release --base-href "/calendar/"
+    - name: Build web
+      run: flutter build web --release --base-href "/calendar/"
       
     - name: Setup Pages
       uses: actions/configure-pages@v4
