@@ -401,7 +401,7 @@ Widget _buildGlobalLogo() {
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFFE91E63).withOpacity(0.3),
+                              color: const Color(0xFFE91E63).withValues(alpha: 0.3),
                               blurRadius: 15,
                               offset: const Offset(0, 8),
                             ),

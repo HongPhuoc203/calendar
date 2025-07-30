@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../services/AIChatService.dart';
+import '../../services/ai_chat_service.dart';
 import '../../models/conversation.dart';
 import '../../services/conversation_service.dart';
 import 'chat_history_screen.dart';
@@ -428,7 +428,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             spreadRadius: 1,
             blurRadius: 5,
             offset: Offset(0, -3),

@@ -2,7 +2,7 @@
     "name": "C Global Calendar - Quản lý lịch thông minh",
     "short_name": "C Global Calendar",
     "description": "Ứng dụng quản lý lịch sự kiện với AI, thống kê chi phí và đồng bộ Google Calendar",
-    "start_url": "/",
+    "start_url": "/calendar/",
     "display": "standalone",
     "background_color": "#1a1a1a",
     "theme_color": "#E91E63",
@@ -10,7 +10,7 @@
     "categories": ["productivity", "business", "utilities"],
     "lang": "vi",
     "dir": "ltr",
-    "scope": "/",
+    "scope": "/calendar/",
     "icons": [
         {
             "src": "icons/Icon-192.png",

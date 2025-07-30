@@ -9,7 +9,6 @@ import '../../services/auth_services.dart';
 import '../../services/notification_services.dart';
 import '../../screens/expenses/expense_statistics_screen.dart';
 import '../../screens/ai/ai_chat_support_screen.dart';
-import '../../screens/ai/chat_history_screen.dart';
 import 'google_calendar_sync_screen.dart';
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});

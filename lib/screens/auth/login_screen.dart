@@ -201,7 +201,7 @@ Widget _buildGlobalLogo() {
         borderRadius: BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),
@@ -237,7 +237,7 @@ Widget _buildGlobalLogo() {
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(15),
             borderSide: BorderSide(
-              color: Colors.grey.withOpacity(0.3),
+              color: Colors.grey.withValues(alpha: 0.3),
               width: 1,
             ),
           ),
@@ -418,7 +418,7 @@ Widget _buildGlobalLogo() {
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFFE91E63).withOpacity(0.3),
+                              color: const Color(0xFFE91E63).withValues(alpha: 0.3),
                               blurRadius: 15,
                               offset: const Offset(0, 8),
                             ),
